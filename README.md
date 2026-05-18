@@ -20,7 +20,7 @@ Optional flags:
 
 After running `npx safariyyds`, you will get a PNG report like this:
 
-![SafariYYDS Report](./safariyyds-report.png)
+![SafariYYDS Report](./docs/report-sample.png)
 
 ## Development
 
