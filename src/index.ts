@@ -93,6 +93,10 @@ async function main() {
   if (!args.has("--no-report") && !args.has("--json")) {
     const reportPath = await createReportImage(electronApps, process.cwd());
     console.log(`\nReport image: ${reportPath}`);
+    await copyImageToClipboard(reportPath);
+    console.log("Copied report image to clipboard.");
+    await openImage(reportPath);
+    console.log("Opened report image.");
   }
 }
 
@@ -315,6 +319,20 @@ async function createReportImage(electronApps: AppInfo[], outDir: string): Promi
   return reportPath;
 }
 
+async function copyImageToClipboard(imagePath: string): Promise<void> {
+  await execFileAsync("/usr/bin/osascript", [
+    "-e",
+    `set the clipboard to (read (POSIX file "${escapeAppleScriptString(imagePath)}") as «class PNGf»)`
+  ]);
+}
+
+async function openImage(imagePath: string): Promise<void> {
+  await execFileAsync("/usr/bin/open", [imagePath], {
+    timeout: 4000,
+    maxBuffer: 1024 * 64
+  });
+}
+
 async function buildRenderItems(apps: AppInfo[]): Promise<RenderItem[]> {
   const items: RenderItem[] = [];
   for (const app of apps) {
@@ -456,12 +474,12 @@ function buildReportSvg(electronCount: number, items: RenderItem[]): string {
   <rect width="100%" height="100%" fill="url(#sun)" />
   <rect x="90" y="90" width="1420" height="900" rx="26" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.65)" />
   <rect x="90" y="130" width="1420" height="120" fill="url(#banner)" opacity="0.9" />
-  <text x="800" y="210" text-anchor="middle" font-size="78" font-weight="700" fill="#a60000" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">喜 报</text>
+  <text x="800" y="210" text-anchor="middle" font-size="72" font-weight="700" fill="#a60000" font-family="Arial Black, Arial, Helvetica, sans-serif">REPORT</text>
 
-  <text x="800" y="380" text-anchor="middle" font-size="62" font-weight="600" fill="#111" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">
-    您的计算机上有
+  <text x="800" y="380" text-anchor="middle" font-size="58" font-weight="600" fill="#111" font-family="Arial, Helvetica, sans-serif">
+    Your Mac has
     <tspan font-size="120" font-weight="800"> ${electronCount} </tspan>
-    个 Electron 应用！
+    Electron apps!
   </text>
 
   ${appCards}
@@ -483,6 +501,10 @@ function escapeXml(text: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+function escapeAppleScriptString(text: string): string {
+  return text.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
 }
 
 main().catch((error) => {

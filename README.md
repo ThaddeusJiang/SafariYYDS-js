@@ -9,6 +9,7 @@ npx safariyyds
 ```
 
 By default, this command generates `./safariyyds-report.png` with app icons and names.
+It also copies the PNG to clipboard and opens it with the default image viewer.
 
 Optional flags:
 
