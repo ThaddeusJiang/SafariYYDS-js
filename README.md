@@ -24,7 +24,7 @@ Optional flags:
 
 After running `npx safariyyds`, you will get a PNG report like this:
 
-![SafariYYDS Report](./docs/report-sample.png)
+![SafariYYDS Report](https://raw.githubusercontent.com/ThaddeusJiang/SafariYYDS-js/main/docs/report-sample.png)
 
 ## Development
 

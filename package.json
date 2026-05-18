@@ -1,6 +1,6 @@
 {
   "name": "safariyyds",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Scan your Mac for Electron, Rosetta2, and VSCode applications.",
   "type": "module",
   "bin": {
@@ -29,12 +29,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amami-harhid/SafariYYDS-js.git"
+    "url": "git+https://github.com/ThaddeusJiang/SafariYYDS-js.git"
   },
   "bugs": {
-    "url": "https://github.com/amami-harhid/SafariYYDS-js/issues"
+    "url": "https://github.com/ThaddeusJiang/SafariYYDS-js/issues"
   },
-  "homepage": "https://github.com/amami-harhid/SafariYYDS-js#readme",
+  "homepage": "https://github.com/ThaddeusJiang/SafariYYDS-js#readme",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -43,8 +43,10 @@
     "node": ">=18"
   },
   "packageManager": "bun@1.3.11",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  },
   "devDependencies": {
-    "@resvg/resvg-js": "^2.6.2",
     "@types/bun": "^1.3.3",
     "typescript": "^5.9.3",
     "@types/node": "^24.10.1"

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-18
+
+### Changed
+- Add npm version and monthly download badges to README.
+- Add author section in README.
+
+### Fixed
+- Use an absolute GitHub image URL in README so the sample report renders correctly on npm package pages.
+- Move `@resvg/resvg-js` to `dependencies` so `npx safariyyds` works correctly at runtime.
+- Correct repository, bugs, and homepage links to `ThaddeusJiang/SafariYYDS-js`.
+
 ## [0.2.0] - 2026-05-18
 
 ### Added
@@ -33,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add human-readable and JSON output modes.
 - Add release checks and npm publish configuration.
 
-[Unreleased]: https://github.com/ThaddeusJiang/SafariYYDS-js/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ThaddeusJiang/SafariYYDS-js/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.2
+[0.2.1]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases
