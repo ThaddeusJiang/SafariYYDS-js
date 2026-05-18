@@ -1,6 +1,6 @@
 {
   "name": "safariyyds",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Scan your Mac for Electron, Rosetta2, and VSCode applications.",
   "type": "module",
   "bin": {
