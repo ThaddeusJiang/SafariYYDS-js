@@ -9,14 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.2] - 2026-05-18
 
-### Changed
-- Add npm version and monthly download badges to README.
-- Add author section in README.
-
 ### Fixed
 - Use an absolute GitHub image URL in README so the sample report renders correctly on npm package pages.
 - Move `@resvg/resvg-js` to `dependencies` so `npx safariyyds` works correctly at runtime.
 - Correct repository, bugs, and homepage links to `ThaddeusJiang/SafariYYDS-js`.
+
+## [0.2.1] - 2026-05-18
+
+### Added
+- Add a tracked sample report image for README rendering.
+- Create `CHANGELOG.md` based on Keep a Changelog.
+
+### Changed
+- Switch report headline copy to English.
+- Add npm version and monthly download badges to README.
+- Add author section in README.
 
 ## [0.2.0] - 2026-05-18
 
@@ -24,10 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generate a visual PNG report with Electron app icons and names.
 - Auto-copy the generated report image to the clipboard.
 - Auto-open the generated report image with the system default viewer.
-- Add a tracked sample report image for README rendering.
 
 ### Changed
-- Switch report headline copy to English.
 - Improve report card layout with adaptive centered rows to prevent overflow.
 - Update README with sample report documentation.
 
