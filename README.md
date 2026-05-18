@@ -1,5 +1,8 @@
 # SafariYYDS-js
 
+[![npm version](https://img.shields.io/npm/v/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
+[![npm downloads](https://img.shields.io/npm/dm/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
+
 A simple `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr233/SafariYYDS).
 
 ## Usage
@@ -31,3 +34,7 @@ bun run check
 bun run build
 bun run dev -- --json
 ```
+
+## Author
+
+ThaddeusJiang
