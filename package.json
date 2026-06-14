@@ -1,6 +1,6 @@
 {
   "name": "safariyyds",
-  "version": "0.2.3",
+  "version": "0.2.4-rc.1",
   "description": "Find Chromium apps on macOS",
   "type": "module",
   "bin": {
