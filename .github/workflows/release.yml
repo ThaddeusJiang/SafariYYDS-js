@@ -1,0 +1,47 @@
+# Publish npm package when a GitHub release is published.
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      is_prerelease: ${{ steps.prepare.outputs.is_prerelease }}
+      version: ${{ steps.prepare.outputs.version }}
+    steps:
+      - name: Derive npm version from release tag
+        id: prepare
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${RELEASE_TAG}"
+          if [ -z "$version" ]; then
+            echo "Release tag is empty"
+            exit 1
+          fi
+          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  npm:
+    name: npm (${{ needs.prepare.outputs.version }})
+    needs: prepare
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      is_prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+      version: ${{ needs.prepare.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write
