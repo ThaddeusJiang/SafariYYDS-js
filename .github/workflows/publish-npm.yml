@@ -2,16 +2,6 @@
 name: Publish npm
 
 on:
-  workflow_call:
-    inputs:
-      version:
-        description: "Release tag or package version to publish"
-        required: true
-        type: string
-      is_prerelease:
-        description: "Publish with the next npm dist-tag"
-        required: true
-        type: boolean
   workflow_dispatch:
     inputs:
       version:
