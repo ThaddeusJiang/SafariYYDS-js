@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.3] - 2026-06-14
 
+### Added
+- Scan Chromium apps by runtime evidence instead of an app-name allowlist.
+- Scan Playwright and Puppeteer browser caches, including Chrome for Testing and Chromium headless shell executables.
+- Scan local and global npm Electron/Playwright browser install locations.
+
 ### Changed
 - Clarify the package, CLI help, and README docs around macOS-only Chromium app discovery.
 - Publish macOS-only npm platform metadata and update npm keywords around Chromium app discovery.
 - Pin package dependency version specs for a deterministic npm release.
+
+### Fixed
+- Detect nested Chromium runtimes such as Dia, ChatGPT Atlas, and Codex without adding per-app bundle identifiers.
+- Show every detected Chromium target in the generated report image, including targets without extractable icons.
 
 ## [0.2.2] - 2026-05-18
 
