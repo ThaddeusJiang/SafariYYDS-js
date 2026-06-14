@@ -6,9 +6,11 @@ import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { Resvg } from "@resvg/resvg-js";
+import { detectRuntime, type AppInfo } from "./detection.js";
+import { buildDefaultScanRoots, discoverScanTargets } from "./discovery.js";
 
 const execFileAsync = promisify(execFile);
-const MAX_SCAN_APPS = 3000;
+const MAX_SCAN_TARGETS = 5000;
 const ICON_SIZE = 96;
 const REPORT_WIDTH = 1600;
 const REPORT_HEIGHT = 1100;
@@ -18,21 +20,17 @@ type ScanResult = {
   machineArch: string;
   roots: string[];
   totals: {
+    scannedTargets: number;
     scannedApps: number;
+    chromiumApps: number;
     electronApps: number;
     rosetta2Apps: number;
     vscodeApps: number;
   };
+  chromiumApps: string[];
   electronApps: string[];
   rosetta2Apps: string[];
-  vscodeApps: string[];
-};
-
-type AppInfo = {
-  appPath: string;
-  appName: string;
-  executablePath: string | null;
-  bundleIdentifier: string | null;
+    vscodeApps: string[];
 };
 
 type RenderItem = {
@@ -49,22 +47,25 @@ async function main() {
     return;
   }
 
-  const roots = ["/Applications", path.join(os.homedir(), "Applications")];
-  const apps = await findApps(roots);
+  const scanRoots = await buildDefaultScanRoots();
+  const roots = scanRoots.map((root) => root.path);
+  const apps = await discoverScanTargets(scanRoots, MAX_SCAN_TARGETS);
   const machineArch = os.arch();
 
+  const chromiumApps: AppInfo[] = [];
   const electronApps: AppInfo[] = [];
   const rosetta2Apps: string[] = [];
   const vscodeApps: string[] = [];
 
   for (const app of apps) {
-    const [isElectron, isVSCode, needsRosetta] = await Promise.all([
-      detectElectron(app),
+    const [runtime, isVSCode, needsRosetta] = await Promise.all([
+      detectRuntime(app),
       detectVSCode(app),
       detectNeedsRosetta2(app, machineArch)
     ]);
 
-    if (isElectron) electronApps.push(app);
+    if (runtime.isChromium) chromiumApps.push(app);
+    if (runtime.isElectron) electronApps.push(app);
     if (isVSCode) vscodeApps.push(app.appPath);
     if (needsRosetta) rosetta2Apps.push(app.appPath);
   }
@@ -74,11 +75,14 @@ async function main() {
     machineArch,
     roots,
     totals: {
-      scannedApps: apps.length,
+      scannedTargets: apps.length,
+      scannedApps: apps.filter((item) => item.targetKind !== "executable").length,
+      chromiumApps: chromiumApps.length,
       electronApps: electronApps.length,
       rosetta2Apps: rosetta2Apps.length,
       vscodeApps: vscodeApps.length
     },
+    chromiumApps: sortPaths(chromiumApps.map((item) => item.appPath)),
     electronApps: sortPaths(electronApps.map((item) => item.appPath)),
     rosetta2Apps: sortPaths(rosetta2Apps),
     vscodeApps: sortPaths(vscodeApps)
@@ -91,7 +95,7 @@ async function main() {
   }
 
   if (!args.has("--no-report") && !args.has("--json")) {
-    const reportPath = await createReportImage(electronApps, process.cwd());
+    const reportPath = await createReportImage(chromiumApps, process.cwd());
     console.log(`\nReport image: ${reportPath}`);
     await copyImageToClipboard(reportPath);
     console.log("Copied report image to clipboard.");
@@ -101,7 +105,7 @@ async function main() {
 }
 
 function printHelp() {
-  console.log(`safariyyds - Scan your Mac for Electron, Rosetta2, and VSCode applications
+  console.log(`safariyyds - Scan your Mac for Chromium, Electron, Rosetta2, and VSCode applications
 
 Usage:
   npx safariyyds
@@ -109,94 +113,6 @@ Usage:
   npx safariyyds --no-report
   npx safariyyds --help
 `);
-}
-
-async function findApps(roots: string[]): Promise<AppInfo[]> {
-  const found: AppInfo[] = [];
-
-  for (const root of roots) {
-    const appPaths = await collectAppBundles(root);
-    for (const appPath of appPaths) {
-      const info = await readAppInfo(appPath);
-      found.push(info);
-      if (found.length >= MAX_SCAN_APPS) {
-        return found;
-      }
-    }
-  }
-
-  return found;
-}
-
-async function collectAppBundles(root: string): Promise<string[]> {
-  const appPaths: string[] = [];
-
-  let rootStat;
-  try {
-    rootStat = await fs.stat(root);
-  } catch {
-    return appPaths;
-  }
-
-  if (!rootStat.isDirectory()) {
-    return appPaths;
-  }
-
-  const queue = [root];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) break;
-
-    let entries;
-    try {
-      entries = await fs.readdir(current, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const fullPath = path.join(current, entry.name);
-      if (entry.name.endsWith(".app")) {
-        appPaths.push(fullPath);
-        continue;
-      }
-
-      if (entry.name.endsWith(".framework") || entry.name === "node_modules") {
-        continue;
-      }
-
-      queue.push(fullPath);
-      if (appPaths.length >= MAX_SCAN_APPS) {
-        return appPaths;
-      }
-    }
-  }
-
-  return appPaths;
-}
-
-async function readAppInfo(appPath: string): Promise<AppInfo> {
-  const appName = path.basename(appPath, ".app");
-  const infoPlistPath = path.join(appPath, "Contents", "Info.plist");
-
-  const [executableName, bundleIdentifier] = await Promise.all([
-    readPlistValue(infoPlistPath, "CFBundleExecutable"),
-    readPlistValue(infoPlistPath, "CFBundleIdentifier")
-  ]);
-
-  const executablePath = executableName
-    ? path.join(appPath, "Contents", "MacOS", executableName)
-    : null;
-
-  return {
-    appPath,
-    appName,
-    executablePath,
-    bundleIdentifier
-  };
 }
 
 async function readPlistValue(infoPlistPath: string, key: string): Promise<string | null> {
@@ -209,22 +125,6 @@ async function readPlistValue(infoPlistPath: string, key: string): Promise<strin
     return value.length > 0 ? value : null;
   } catch {
     return null;
-  }
-}
-
-async function detectElectron(app: AppInfo): Promise<boolean> {
-  const electronFramework = path.join(
-    app.appPath,
-    "Contents",
-    "Frameworks",
-    "Electron Framework.framework"
-  );
-
-  try {
-    await fs.access(electronFramework);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -286,7 +186,9 @@ function printHumanReadable(result: ScanResult) {
   }
   console.log("");
 
-  console.log(`Total apps scanned: ${result.totals.scannedApps}`);
+  console.log(`Total targets scanned: ${result.totals.scannedTargets}`);
+  console.log(`App bundles scanned: ${result.totals.scannedApps}`);
+  printSection("Chromium apps", result.chromiumApps);
   printSection("Electron apps", result.electronApps);
   printSection("Rosetta2-only apps", result.rosetta2Apps);
   printSection("VSCode apps", result.vscodeApps);
@@ -304,10 +206,10 @@ function printSection(title: string, entries: string[]) {
   }
 }
 
-async function createReportImage(electronApps: AppInfo[], outDir: string): Promise<string> {
+async function createReportImage(chromiumApps: AppInfo[], outDir: string): Promise<string> {
   const reportPath = path.join(outDir, "safariyyds-report.png");
-  const renderItems = await buildRenderItems(electronApps.slice(0, 12));
-  const svg = buildReportSvg(electronApps.length, renderItems);
+  const renderItems = await buildRenderItems(chromiumApps.slice(0, 12));
+  const svg = buildReportSvg(chromiumApps.length, renderItems);
   const resvg = new Resvg(svg, {
     fitTo: {
       mode: "width",
@@ -419,8 +321,8 @@ async function pathExists(target: string): Promise<boolean> {
   }
 }
 
-function buildReportSvg(electronCount: number, items: RenderItem[]): string {
-  const cards = items.length > 0 ? items : [{ appName: "No Electron App", appPath: "", iconDataUri: "" }];
+function buildReportSvg(chromiumCount: number, items: RenderItem[]): string {
+  const cards = items.length > 0 ? items : [{ appName: "No Chromium App", appPath: "", iconDataUri: "" }];
   const cardWidth = 220;
   const cardHeight = 220;
   const gap = 24;
@@ -478,8 +380,8 @@ function buildReportSvg(electronCount: number, items: RenderItem[]): string {
 
   <text x="800" y="380" text-anchor="middle" font-size="58" font-weight="600" fill="#111" font-family="Arial, Helvetica, sans-serif">
     Your Mac has
-    <tspan font-size="120" font-weight="800"> ${electronCount} </tspan>
-    Electron apps!
+    <tspan font-size="120" font-weight="800"> ${chromiumCount} </tspan>
+    Chromium apps!
   </text>
 
   ${appCards}
