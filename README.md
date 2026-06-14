@@ -3,7 +3,15 @@
 [![npm version](https://img.shields.io/npm/v/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
 [![npm downloads](https://img.shields.io/npm/dm/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
 
-A simple `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr233/SafariYYDS).
+A macOS-only `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr233/SafariYYDS).
+
+## Requirements
+
+- macOS
+- Node.js 18+
+
+This CLI scans macOS `.app` bundles in `/Applications` and `~/Applications`.
+It also uses macOS system tools such as `defaults`, `lipo`, `sips`, `osascript`, and `open`.
 
 ## Usage
 
@@ -11,7 +19,7 @@ A simple `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr2
 npx safariyyds
 ```
 
-By default, this command generates `./safariyyds-report.png` with app icons and names.
+By default, this command scans Chromium apps on macOS and generates `./safariyyds-report.png` with app icons and names.
 It also copies the PNG to clipboard and opens it with the default image viewer.
 
 Optional flags:

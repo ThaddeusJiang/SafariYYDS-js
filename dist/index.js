@@ -69,7 +69,7 @@ Report image: ${reportPath}`);
   }
 }
 function printHelp() {
-  console.log(`safariyyds - Scan your Mac for Electron, Rosetta2, and VSCode applications
+  console.log(`safariyyds - Find Chromium apps on macOS and generate a shareable PNG report
 
 Usage:
   npx safariyyds

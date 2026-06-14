@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-06-14
+
+### Changed
+- Clarify the package, CLI help, and README docs around macOS-only Chromium app discovery.
+- Publish macOS-only npm platform metadata and update npm keywords around Chromium app discovery.
+- Pin package dependency version specs for a deterministic npm release.
+
 ## [0.2.2] - 2026-05-18
 
 ### Fixed
@@ -49,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add human-readable and JSON output modes.
 - Add release checks and npm publish configuration.
 
-[Unreleased]: https://github.com/ThaddeusJiang/SafariYYDS-js/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/ThaddeusJiang/SafariYYDS-js/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/ThaddeusJiang/SafariYYDS-js/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.2
 [0.2.1]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ThaddeusJiang/SafariYYDS-js/releases/tag/v0.2.0
