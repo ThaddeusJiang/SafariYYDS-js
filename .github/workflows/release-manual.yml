@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ inputs.tag }}
         run: |
-          gh workflow run publish-npm.yml \
+          gh workflow run release.yml \
             --ref "$INPUT_TAG" \
             -f version="$INPUT_TAG" \
             -f is_prerelease=true

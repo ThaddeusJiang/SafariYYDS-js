@@ -5,32 +5,65 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag or package version to publish (for example: v0.2.3)"
+        required: true
+        type: string
+      is_prerelease:
+        description: "Publish with the next npm dist-tag"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
-  actions: write
+  id-token: write
 
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
+  group: release-${{ github.event.release.tag_name || inputs.version }}
   cancel-in-progress: false
 
 jobs:
-  dispatch:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      is_prerelease: ${{ steps.prepare.outputs.is_prerelease }}
+      version: ${{ steps.prepare.outputs.version }}
     steps:
-      - name: Dispatch npm publish workflow
+      - name: Prepare npm release metadata
+        id: prepare
         env:
-          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
           IS_PRERELEASE: ${{ github.event.release.prerelease }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_REF: ${{ github.event.release.tag_name }}
+          INPUT_IS_PRERELEASE: ${{ inputs.is_prerelease }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "Release tag is empty"
+          if [ "$EVENT_NAME" = "release" ]; then
+            version="$RELEASE_TAG"
+            is_prerelease="$IS_PRERELEASE"
+          else
+            version="$INPUT_VERSION"
+            is_prerelease="$INPUT_IS_PRERELEASE"
+          fi
+
+          if [ -z "$version" ]; then
+            echo "Release version is empty"
             exit 1
           fi
 
-          gh workflow run publish-npm.yml \
-            --ref "$RELEASE_REF" \
-            -f version="$RELEASE_TAG" \
-            -f is_prerelease="$IS_PRERELEASE"
+          echo "is_prerelease=${is_prerelease}" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  npm:
+    name: npm (${{ needs.prepare.outputs.version }})
+    needs: prepare
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      is_prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+      version: ${{ needs.prepare.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write
