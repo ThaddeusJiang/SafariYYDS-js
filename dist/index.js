@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 
 // src/index.ts
-import { promises as fs3 } from "node:fs";
-import path3 from "node:path";
 import os2 from "node:os";
-import { execFile as execFile2 } from "node:child_process";
-import { promisify as promisify2 } from "node:util";
-import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
-import { Resvg } from "@resvg/resvg-js";
+import { execFile as execFile3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
 
 // src/detection.ts
 import { promises as fs } from "node:fs";
@@ -317,12 +312,252 @@ async function statOrNull2(targetPath) {
   }
 }
 
-// src/index.ts
+// src/report.ts
+import { promises as fs3 } from "node:fs";
+import path3 from "node:path";
+import { execFile as execFile2 } from "node:child_process";
+import { promisify as promisify2 } from "node:util";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { Resvg } from "@resvg/resvg-js";
 var execFileAsync2 = promisify2(execFile2);
-var MAX_SCAN_TARGETS = 5000;
 var ICON_SIZE = 96;
 var REPORT_WIDTH = 1600;
-var REPORT_HEIGHT = 1100;
+var REPORT_MIN_HEIGHT = 1100;
+async function createReportImage(chromiumApps, outDir) {
+  const reportPath = path3.join(outDir, "safariyyds-report.png");
+  const renderItems = await buildRenderItems(chromiumApps);
+  const svg = buildReportSvg(chromiumApps.length, renderItems);
+  const resvg = new Resvg(svg, {
+    fitTo: {
+      mode: "width",
+      value: REPORT_WIDTH
+    }
+  });
+  const pngData = resvg.render().asPng();
+  await fs3.writeFile(reportPath, pngData);
+  return reportPath;
+}
+async function buildRenderItems(apps, iconLoader = extractAppIconDataUri) {
+  const items = [];
+  for (const app of apps) {
+    items.push({
+      appName: app.appName,
+      appPath: app.appPath,
+      iconDataUri: await iconLoader(app) || ""
+    });
+  }
+  return items;
+}
+function buildReportSvg(chromiumCount, items) {
+  const layout = createCardLayout(items);
+  const appCards = layout.cards.map((item, idx) => {
+    const row = Math.floor(idx / layout.columns);
+    const rowStart = row * layout.columns;
+    const rowCount = Math.min(layout.columns, layout.cards.length - rowStart);
+    const rowWidth = rowCount * layout.cardWidth + (rowCount - 1) * layout.gap;
+    const rowStartX = layout.panelX + (layout.panelWidth - rowWidth) / 2;
+    const col = idx - rowStart;
+    const x = rowStartX + col * (layout.cardWidth + layout.gap);
+    const y = layout.gridTop + row * (layout.cardHeight + layout.gap);
+    const name = escapeXml(shorten(item.appName, layout.labelFontSize <= 18 ? 18 : 20));
+    const iconX = x + (layout.cardWidth - layout.iconSize) / 2;
+    const iconMarkup = item.iconDataUri ? `<image href="${item.iconDataUri}" x="${iconX}" y="${y + layout.iconY}" width="${layout.iconSize}" height="${layout.iconSize}"/>` : buildPlaceholderIcon(item.appName, iconX, y + layout.iconY, layout.iconSize);
+    return `
+  <g class="app-card">
+    <rect x="${x}" y="${y}" width="${layout.cardWidth}" height="${layout.cardHeight}" rx="18" fill="rgba(255,255,255,0.72)" />
+    ${iconMarkup}
+    <text x="${x + layout.cardWidth / 2}" y="${y + layout.labelY}" text-anchor="middle" font-size="${layout.labelFontSize}" fill="#111" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">${name}</text>
+  </g>`;
+  }).join(`
+`);
+  return `
+<svg width="${REPORT_WIDTH}" height="${layout.reportHeight}" viewBox="0 0 ${REPORT_WIDTH} ${layout.reportHeight}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sun" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#fff84a" />
+      <stop offset="50%" stop-color="#ffb300" />
+      <stop offset="100%" stop-color="#ff3d00" />
+    </radialGradient>
+    <linearGradient id="banner" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fff29a" />
+      <stop offset="100%" stop-color="#ffd86b" />
+    </linearGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#sun)" />
+  <rect x="${layout.panelX}" y="${layout.panelY}" width="${layout.panelWidth}" height="${layout.panelHeight}" rx="26" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.65)" />
+  <rect x="${layout.panelX}" y="130" width="${layout.panelWidth}" height="120" fill="url(#banner)" opacity="0.9" />
+  <text x="800" y="210" text-anchor="middle" font-size="72" font-weight="700" fill="#a60000" font-family="Arial Black, Arial, Helvetica, sans-serif">REPORT</text>
+
+  <text x="800" y="380" text-anchor="middle" font-size="58" font-weight="600" fill="#111" font-family="Arial, Helvetica, sans-serif">
+    Your Mac has
+    <tspan font-size="120" font-weight="800"> ${chromiumCount} </tspan>
+    Chromium apps!
+  </text>
+
+  ${appCards}
+
+  <text x="800" y="${layout.footerY}" text-anchor="middle" font-size="22" fill="rgba(0,0,0,0.6)" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">Generated by safariyyds</text>
+</svg>
+`;
+}
+async function copyImageToClipboard(imagePath) {
+  await execFileAsync2("/usr/bin/osascript", [
+    "-e",
+    `set the clipboard to (read (POSIX file "${escapeAppleScriptString(imagePath)}") as «class PNGf»)`
+  ]);
+}
+async function openImage(imagePath) {
+  await execFileAsync2("/usr/bin/open", [imagePath], {
+    timeout: 4000,
+    maxBuffer: 1024 * 64
+  });
+}
+function createCardLayout(items) {
+  const cards = items.length > 0 ? items : [{ appName: "No Chromium App", appPath: "", iconDataUri: "" }];
+  const panelX = 90;
+  const panelY = 90;
+  const panelWidth = 1420;
+  const innerPadding = 22;
+  const gap = cards.length > 12 ? 18 : 24;
+  const preferredCardWidth = cards.length > 12 ? 190 : 220;
+  const maxGridWidth = panelWidth - innerPadding * 2;
+  const maxColumns = Math.max(1, Math.floor((maxGridWidth + gap) / (preferredCardWidth + gap)));
+  const columns = Math.min(Math.max(1, cards.length), maxColumns);
+  const rows = Math.ceil(cards.length / columns);
+  const cardWidth = Math.floor((maxGridWidth - gap * (columns - 1)) / columns);
+  const compact = rows > 2;
+  const cardHeight = compact ? 154 : 220;
+  const iconSize = compact ? 68 : 96;
+  const iconY = compact ? 24 : 30;
+  const labelY = compact ? 122 : 165;
+  const labelFontSize = compact ? 18 : 24;
+  const gridTop = compact ? 490 : 520;
+  const gridHeight = rows * cardHeight + (rows - 1) * gap;
+  const reportHeight = Math.max(REPORT_MIN_HEIGHT, gridTop + gridHeight + 120);
+  const footerY = reportHeight - 60;
+  const panelHeight = reportHeight - panelY - 110;
+  return {
+    cards,
+    cardWidth,
+    cardHeight,
+    columns,
+    gap,
+    iconSize,
+    iconY,
+    labelY,
+    labelFontSize,
+    gridTop,
+    panelX,
+    panelY,
+    panelWidth,
+    panelHeight,
+    reportHeight,
+    footerY
+  };
+}
+async function extractAppIconDataUri(app) {
+  const tempRoot = path3.join(tmpdir(), `safariyyds-icon-${randomUUID()}`);
+  await fs3.mkdir(tempRoot, { recursive: true });
+  try {
+    const iconPath = await findAppIconIcns(app);
+    if (!iconPath)
+      return null;
+    const pngPath = path3.join(tempRoot, "icon.png");
+    await execFileAsync2("/usr/bin/sips", ["-s", "format", "png", "-z", String(ICON_SIZE), String(ICON_SIZE), iconPath, "--out", pngPath], {
+      timeout: 4000,
+      maxBuffer: 1024 * 512
+    });
+    const buffer = await fs3.readFile(pngPath);
+    return `data:image/png;base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  } finally {
+    await fs3.rm(tempRoot, { recursive: true, force: true });
+  }
+}
+async function findAppIconIcns(app) {
+  const infoPlistPath = path3.join(app.appPath, "Contents", "Info.plist");
+  const resourcesDir = path3.join(app.appPath, "Contents", "Resources");
+  const declaredIcon = await readPlistValue2(infoPlistPath, "CFBundleIconFile") || await readPlistValue2(infoPlistPath, "CFBundleIconName");
+  if (declaredIcon) {
+    const direct = path3.join(resourcesDir, declaredIcon);
+    const withExt = direct.endsWith(".icns") ? direct : `${direct}.icns`;
+    if (await pathExists(withExt))
+      return withExt;
+    if (await pathExists(direct))
+      return direct;
+  }
+  const fallbackNames = [
+    `${app.appName}.icns`,
+    "AppIcon.icns",
+    "Electron.icns"
+  ];
+  for (const name of fallbackNames) {
+    const candidate = path3.join(resourcesDir, name);
+    if (await pathExists(candidate))
+      return candidate;
+  }
+  try {
+    const files = await fs3.readdir(resourcesDir);
+    const firstIcns = files.find((file) => file.toLowerCase().endsWith(".icns"));
+    if (!firstIcns)
+      return null;
+    return path3.join(resourcesDir, firstIcns);
+  } catch {
+    return null;
+  }
+}
+async function readPlistValue2(infoPlistPath, key) {
+  try {
+    const { stdout } = await execFileAsync2("/usr/bin/defaults", ["read", infoPlistPath, key], {
+      timeout: 1500,
+      maxBuffer: 1024 * 128
+    });
+    const value = stdout.trim();
+    return value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+async function pathExists(target) {
+  try {
+    await fs3.access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function buildPlaceholderIcon(appName, x, y, size) {
+  const initials = escapeXml(getInitials(appName));
+  return `
+    <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="18" fill="#f2f2f2"/>
+    <text x="${x + size / 2}" y="${y + size / 2 + 8}" text-anchor="middle" font-size="${Math.round(size * 0.34)}" font-weight="700" fill="#555" font-family="Arial, Helvetica, sans-serif">${initials}</text>`;
+}
+function getInitials(appName) {
+  const parts = appName.replaceAll(/[^a-zA-Z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+  if (parts.length === 0)
+    return "?";
+  if (parts.length === 1)
+    return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+function shorten(text, maxLen) {
+  if (text.length <= maxLen)
+    return text;
+  return `${text.slice(0, maxLen - 1)}...`;
+}
+function escapeXml(text) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+}
+function escapeAppleScriptString(text) {
+  return text.replaceAll("\\", "\\\\").replaceAll('"', "\\\"");
+}
+
+// src/index.ts
+var execFileAsync3 = promisify3(execFile3);
+var MAX_SCAN_TARGETS = 5000;
 async function main() {
   const args = new Set(process.argv.slice(2));
   if (args.has("-h") || args.has("--help")) {
@@ -394,18 +629,6 @@ Usage:
   npx safariyyds --help
 `);
 }
-async function readPlistValue2(infoPlistPath, key) {
-  try {
-    const { stdout } = await execFileAsync2("/usr/bin/defaults", ["read", infoPlistPath, key], {
-      timeout: 1500,
-      maxBuffer: 1024 * 128
-    });
-    const value = stdout.trim();
-    return value.length > 0 ? value : null;
-  } catch {
-    return null;
-  }
-}
 async function detectVSCode(app) {
   const name = app.appName.toLowerCase();
   const bundle = (app.bundleIdentifier || "").toLowerCase();
@@ -417,7 +640,7 @@ async function detectNeedsRosetta2(app, machineArch) {
   if (!app.executablePath)
     return false;
   try {
-    const { stdout } = await execFileAsync2("/usr/bin/lipo", ["-archs", app.executablePath], {
+    const { stdout } = await execFileAsync3("/usr/bin/lipo", ["-archs", app.executablePath], {
       timeout: 1500,
       maxBuffer: 1024 * 32
     });
@@ -460,179 +683,6 @@ ${title} (${entries.length})`);
   for (const item of entries) {
     console.log(`  - ${item}`);
   }
-}
-async function createReportImage(chromiumApps, outDir) {
-  const reportPath = path3.join(outDir, "safariyyds-report.png");
-  const renderItems = await buildRenderItems(chromiumApps.slice(0, 12));
-  const svg = buildReportSvg(chromiumApps.length, renderItems);
-  const resvg = new Resvg(svg, {
-    fitTo: {
-      mode: "width",
-      value: REPORT_WIDTH
-    }
-  });
-  const pngData = resvg.render().asPng();
-  await fs3.writeFile(reportPath, pngData);
-  return reportPath;
-}
-async function copyImageToClipboard(imagePath) {
-  await execFileAsync2("/usr/bin/osascript", [
-    "-e",
-    `set the clipboard to (read (POSIX file "${escapeAppleScriptString(imagePath)}") as «class PNGf»)`
-  ]);
-}
-async function openImage(imagePath) {
-  await execFileAsync2("/usr/bin/open", [imagePath], {
-    timeout: 4000,
-    maxBuffer: 1024 * 64
-  });
-}
-async function buildRenderItems(apps) {
-  const items = [];
-  for (const app of apps) {
-    const iconDataUri = await extractAppIconDataUri(app);
-    if (!iconDataUri)
-      continue;
-    items.push({
-      appName: app.appName,
-      appPath: app.appPath,
-      iconDataUri
-    });
-  }
-  return items;
-}
-async function extractAppIconDataUri(app) {
-  const tempRoot = path3.join(tmpdir(), `safariyyds-icon-${randomUUID()}`);
-  await fs3.mkdir(tempRoot, { recursive: true });
-  try {
-    const iconPath = await findAppIconIcns(app);
-    if (!iconPath)
-      return null;
-    const pngPath = path3.join(tempRoot, "icon.png");
-    await execFileAsync2("/usr/bin/sips", ["-s", "format", "png", "-z", String(ICON_SIZE), String(ICON_SIZE), iconPath, "--out", pngPath], {
-      timeout: 4000,
-      maxBuffer: 1024 * 512
-    });
-    const buffer = await fs3.readFile(pngPath);
-    return `data:image/png;base64,${buffer.toString("base64")}`;
-  } catch {
-    return null;
-  } finally {
-    await fs3.rm(tempRoot, { recursive: true, force: true });
-  }
-}
-async function findAppIconIcns(app) {
-  const infoPlistPath = path3.join(app.appPath, "Contents", "Info.plist");
-  const resourcesDir = path3.join(app.appPath, "Contents", "Resources");
-  const declaredIcon = await readPlistValue2(infoPlistPath, "CFBundleIconFile") || await readPlistValue2(infoPlistPath, "CFBundleIconName");
-  if (declaredIcon) {
-    const direct = path3.join(resourcesDir, declaredIcon);
-    const withExt = direct.endsWith(".icns") ? direct : `${direct}.icns`;
-    if (await pathExists(withExt))
-      return withExt;
-    if (await pathExists(direct))
-      return direct;
-  }
-  const fallbackNames = [
-    `${app.appName}.icns`,
-    "AppIcon.icns",
-    "Electron.icns"
-  ];
-  for (const name of fallbackNames) {
-    const candidate = path3.join(resourcesDir, name);
-    if (await pathExists(candidate))
-      return candidate;
-  }
-  try {
-    const files = await fs3.readdir(resourcesDir);
-    const firstIcns = files.find((file) => file.toLowerCase().endsWith(".icns"));
-    if (!firstIcns)
-      return null;
-    return path3.join(resourcesDir, firstIcns);
-  } catch {
-    return null;
-  }
-}
-async function pathExists(target) {
-  try {
-    await fs3.access(target);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function buildReportSvg(chromiumCount, items) {
-  const cards = items.length > 0 ? items : [{ appName: "No Chromium App", appPath: "", iconDataUri: "" }];
-  const cardWidth = 220;
-  const cardHeight = 220;
-  const gap = 24;
-  const panelX = 90;
-  const panelWidth = 1420;
-  const innerPadding = 22;
-  const maxGridWidth = panelWidth - innerPadding * 2;
-  const maxColumns = Math.max(1, Math.floor((maxGridWidth + gap) / (cardWidth + gap)));
-  const perRow = Math.min(Math.max(1, cards.length), maxColumns);
-  const startY = 520;
-  const appCards = cards.map((item, idx) => {
-    const row = Math.floor(idx / perRow);
-    const rowStart = row * perRow;
-    const rowCount = Math.min(perRow, cards.length - rowStart);
-    const rowWidth = rowCount * cardWidth + (rowCount - 1) * gap;
-    const rowStartX = panelX + (panelWidth - rowWidth) / 2;
-    const col = idx - rowStart;
-    const x = rowStartX + col * (cardWidth + gap);
-    const y = startY + row * (cardHeight + gap);
-    const name = escapeXml(shorten(item.appName, 20));
-    const iconMarkup = item.iconDataUri ? `<image href="${item.iconDataUri}" x="${x + 62}" y="${y + 30}" width="96" height="96"/>` : `<rect x="${x + 62}" y="${y + 30}" width="96" height="96" rx="20" fill="#f2f2f2"/>`;
-    return `
-  <g>
-    <rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="24" fill="rgba(255,255,255,0.72)" />
-    ${iconMarkup}
-    <text x="${x + cardWidth / 2}" y="${y + 165}" text-anchor="middle" font-size="24" fill="#111" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">${name}</text>
-  </g>`;
-  }).join(`
-`);
-  return `
-<svg width="${REPORT_WIDTH}" height="${REPORT_HEIGHT}" viewBox="0 0 ${REPORT_WIDTH} ${REPORT_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="sun" cx="50%" cy="40%" r="70%">
-      <stop offset="0%" stop-color="#fff84a" />
-      <stop offset="50%" stop-color="#ffb300" />
-      <stop offset="100%" stop-color="#ff3d00" />
-    </radialGradient>
-    <linearGradient id="banner" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#fff29a" />
-      <stop offset="100%" stop-color="#ffd86b" />
-    </linearGradient>
-  </defs>
-
-  <rect width="100%" height="100%" fill="url(#sun)" />
-  <rect x="90" y="90" width="1420" height="900" rx="26" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.65)" />
-  <rect x="90" y="130" width="1420" height="120" fill="url(#banner)" opacity="0.9" />
-  <text x="800" y="210" text-anchor="middle" font-size="72" font-weight="700" fill="#a60000" font-family="Arial Black, Arial, Helvetica, sans-serif">REPORT</text>
-
-  <text x="800" y="380" text-anchor="middle" font-size="58" font-weight="600" fill="#111" font-family="Arial, Helvetica, sans-serif">
-    Your Mac has
-    <tspan font-size="120" font-weight="800"> ${chromiumCount} </tspan>
-    Chromium apps!
-  </text>
-
-  ${appCards}
-
-  <text x="800" y="1040" text-anchor="middle" font-size="22" fill="rgba(0,0,0,0.6)" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">Generated by safariyyds</text>
-</svg>
-`;
-}
-function shorten(text, maxLen) {
-  if (text.length <= maxLen)
-    return text;
-  return `${text.slice(0, maxLen - 1)}…`;
-}
-function escapeXml(text) {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
-}
-function escapeAppleScriptString(text) {
-  return text.replaceAll("\\", "\\\\").replaceAll('"', "\\\"");
 }
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Detect nested Chromium runtimes such as Dia, ChatGPT Atlas, and Codex without adding per-app bundle identifiers.
+- Show every detected Chromium target in the generated report image, including targets without extractable icons.
 
 ## [0.2.2] - 2026-05-18
 
