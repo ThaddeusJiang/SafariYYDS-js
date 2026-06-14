@@ -1,19 +1,8 @@
 # SafariYYDS-js
+A simple `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr233/SafariYYDS).
 
 [![npm version](https://img.shields.io/npm/v/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
 [![npm downloads](https://img.shields.io/npm/dm/safariyyds.svg)](https://www.npmjs.com/package/safariyyds)
-
-A macOS-only `npx` edition inspired by [Lakr233/SafariYYDS](https://github.com/Lakr233/SafariYYDS).
-
-## Requirements
-
-- macOS
-- Node.js 18+
-
-This CLI scans macOS `.app` bundles in `/Applications` and `~/Applications`.
-It also uses macOS system tools such as `defaults`, `lipo`, `sips`, `osascript`, and `open`.
-It scans your Mac for Chromium, Electron, Rosetta2-only, and VSCode-family applications.
-The scan includes installed `.app` bundles, nested Chromium runtimes, Playwright browser caches, Puppeteer browser caches, and common npm-installed Electron/Playwright browser locations.
 
 ## Usage
 
@@ -21,7 +10,7 @@ The scan includes installed `.app` bundles, nested Chromium runtimes, Playwright
 npx safariyyds
 ```
 
-By default, this command scans Chromium apps on macOS and generates `./safariyyds-report.png` with app icons and names.
+By default, this command scans `Chromium` apps on macOS and generates `./safariyyds-report.png` with app icons and names.
 It also copies the PNG to clipboard and opens it with the default image viewer.
 
 Optional flags:
@@ -29,6 +18,8 @@ Optional flags:
 - `--json`: Print machine-readable JSON.
 - `--no-report`: Skip report image generation.
 - `--help`: Show help.
+
+![SafariYYDS Report](https://raw.githubusercontent.com/ThaddeusJiang/SafariYYDS-js/main/docs/report-sample.png)
 
 ## Scan Coverage
 
@@ -42,12 +33,6 @@ SafariYYDS looks for runtime evidence instead of maintaining an app-name allowli
 - Browser caches configured by `PLAYWRIGHT_BROWSERS_PATH` and `PUPPETEER_CACHE_DIR`.
 - Electron and Playwright browser installs under local and global npm package roots.
 
-## Sample Report
-
-After running `npx safariyyds`, you will get a PNG report like this:
-
-![SafariYYDS Report](https://raw.githubusercontent.com/ThaddeusJiang/SafariYYDS-js/main/docs/report-sample.png)
-
 ## Development
 
 ```bash
@@ -58,6 +43,6 @@ bun run build
 bun run dev -- --json
 ```
 
-## Author
+## License
 
-ThaddeusJiang
+MIT @ [ThaddeusJiang](https://github.com/ThaddeusJiang)

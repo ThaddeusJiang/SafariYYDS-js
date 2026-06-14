@@ -24,3 +24,5 @@ pnpm-debug.log*
 # local npm pack output
 *.tgz
 safariyyds-report.png
+
+_local_docs
